@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir C:Usersok150Desktopbubu_injector-main *)",
+      "Bash([ -f \"C:/Users/ok150/Desktop/bubu_injector-main/deps/$d/CMakeLists.txt\" ])",
+      "Bash(cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl)",
+      "Bash(git clone *)",
+      "Bash(cmake --build build)",
+      "Bash(dumpbin //exports \"C:/Users/ok150/Desktop/bubu_injector-main/bin/ENIPayload.dll\")",
+      "Bash(dumpbin //headers \"C:/Users/ok150/Desktop/bubu_injector-main/bin/ENIPayload.dll\")",
+      "Bash(tasklist //FI \"IMAGENAME eq RobloxPlayerBeta.exe\")",
+      "Bash(mkdir -p \"C:/Users/ok150/AppData/Roaming/ENI/logs\" \"C:/Users/ok150/AppData/Roaming/ENI/config\" \"C:/Users/ok150/AppData/Roaming/ENI/scripts\")",
+      "Read(//c/Users/ok150/AppData/Roaming/**)",
+      "Bash(./ENILoader.exe --verbose)",
+      "Bash(tasklist //FI \"PID eq 492\")",
+      "Bash(cmake --build build --target ENILoader --clean-first)",
+      "Bash(cmake --build \"C:\\\\Users\\\\ok150\\\\Desktop\\\\bubu_injector-main\\\\build\")"
+    ]
+  }
+}
