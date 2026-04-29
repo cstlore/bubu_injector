@@ -1,0 +1,74 @@
+; =============================================================================
+; libHttpClient.GDK.dll exports
+; =============================================================================
+;
+; Reproduces the exact symbol set Roblox's RobloxPlayerBeta.exe lists in its
+; delay-load import table for libHttpClient.GDK.dll. Names and ordinals
+; harvested via:
+;
+;   dumpbin /imports RobloxPlayerBeta.exe   (Apr 2026 build)
+;
+; Each export is fixed at the same ordinal Roblox's import table records as
+; its hint, so the delay-load resolver's fast path (ordinal->slot) hits on
+; the first probe rather than falling back to name resolution.
+;
+; All implementations live in src/Stubs.cpp. They return the equivalent of
+; HRESULT=E_NOTIMPL (0x80000001) for functions that yield a status value,
+; and zero/no-op for sinks. The intent: Roblox's HTTP/WebSocket subsystem
+; gracefully degrades when calls fail. On systems where libHttpClient.GDK.dll
+; was missing entirely, Roblox already runs fine, which means it tolerates
+; either an unresolved import or a stub-failure path.
+;
+; The library name MUST be the bare DLL basename (no extension, no path);
+; LINK derives the on-disk filename from the OUTPUT_NAME property in CMake.
+; =============================================================================
+
+LIBRARY libHttpClient.GDK
+
+EXPORTS
+    HCCleanupAsync                              @3
+    HCGetWebSocketConnectResult                 @6
+    HCGetWebSocketSendMessageResult             @8
+    HCHttpCallCloseHandle                       @9
+    HCHttpCallCreate                            @10
+    HCHttpCallDuplicateHandle                   @11
+    HCHttpCallGetRequestUrl                     @14
+    HCHttpCallPerformAsync                      @15
+    HCHttpCallRequestGetHeaderAtIndex           @18
+    HCHttpCallRequestGetNumHeaders              @19
+    HCHttpCallRequestGetRequestBodyBytes        @20
+    HCHttpCallRequestGetRetryAllowed            @23
+    HCHttpCallRequestGetRetryCacheId            @24
+    HCHttpCallRequestGetRetryDelay              @25
+    HCHttpCallRequestGetTimeout                 @26
+    HCHttpCallRequestGetTimeoutWindow           @27
+    HCHttpCallRequestGetUrl                     @28
+    HCHttpCallRequestSetHeader                  @29
+    HCHttpCallRequestSetRequestBodyBytes        @30
+    HCHttpCallRequestSetRequestBodyString       @32
+    HCHttpCallRequestSetRetryAllowed            @33
+    HCHttpCallRequestSetRetryCacheId            @34
+    HCHttpCallRequestSetRetryDelay              @35
+    HCHttpCallRequestSetTimeout                 @37
+    HCHttpCallRequestSetTimeoutWindow           @38
+    HCHttpCallRequestSetUrl                     @39
+    HCHttpCallResponseGetHeader                 @41
+    HCHttpCallResponseGetHeaderAtIndex          @42
+    HCHttpCallResponseGetNetworkErrorCode       @43
+    HCHttpCallResponseGetNumHeaders             @44
+    HCHttpCallResponseGetPlatformNetworkErrorMessage @45
+    HCHttpCallResponseGetResponseBodyBytes      @46
+    HCHttpCallResponseGetResponseBodyBytesSize  @47
+    HCHttpCallResponseGetResponseString         @49
+    HCHttpCallResponseGetStatusCode             @50
+    HCHttpCallSetTracing                        @60
+    HCInitialize                                @62
+    HCSettingsGetTraceLevel                     @82
+    HCTraceImplMessage                          @85
+    HCTraceSetEtwEnabled                        @90
+    HCWebSocketCloseHandle                      @93
+    HCWebSocketConnectAsync                     @94
+    HCWebSocketCreate                           @95
+    HCWebSocketDisconnect                       @96
+    HCWebSocketSendMessageAsync                 @105
+    HCWebSocketSetHeader                        @107

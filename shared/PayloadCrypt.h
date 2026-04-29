@@ -78,7 +78,9 @@ struct KeyMaterial {
 // supplied by the generated PayloadKey.h when the build system has run
 // the keygen step; otherwise fall back to the development placeholder.
 #if __has_include("PayloadKey.h")
+} // close namespace ENI::Crypt before including PayloadKey.h (which opens its own)
 #include "PayloadKey.h"
+namespace ENI::Crypt {  // reopen for the rest of this header
 #else
 inline constexpr KeyMaterial PayloadKey = {{
     // Development placeholder - production replaces this via PayloadKey.h.

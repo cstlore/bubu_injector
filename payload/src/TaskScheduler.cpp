@@ -57,9 +57,26 @@ void EnsureLockInit() {
     }
 }
 
+// MSVC forbids __try in functions with C++ destructors. Isolate the SEH
+// wrapper into a plain-pointer function so the compiler is happy.
+void InvokeJobSEH(void(*fn)()) {
+    __try {
+        fn();
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        Log::Line("[taskscheduler] job threw SEH exception code=0x%X",
+                  GetExceptionCode());
+    }
+}
+
+// Thunk: captures the Job* for InvokeJobSEH. We use a thread-local
+// because InvokeJobSEH takes a plain function pointer (no captures).
+static thread_local Job* t_CurrentJob = nullptr;
+
+void InvokeCurrentJob() {
+    if (t_CurrentJob) (*t_CurrentJob)();
+}
+
 void Drain() {
-    // Called from the detour body. We're on the Roblox-scheduled thread
-    // and it's safe to call Lua from here.
     for (;;) {
         Job j;
         EnterCriticalSection(&g_Queue.Lock);
@@ -68,19 +85,15 @@ void Drain() {
             return;
         }
         j = std::move(g_Queue.Slots[g_Queue.Head]);
-        g_Queue.Slots[g_Queue.Head] = Job{};  // release captures immediately
+        g_Queue.Slots[g_Queue.Head] = Job{};
         g_Queue.Head = (g_Queue.Head + 1) % kQueueCapacity;
         --g_Queue.Size;
         LeaveCriticalSection(&g_Queue.Lock);
 
-        // Execute outside the lock so a slow job doesn't wedge producers.
         if (j) {
-            __try {
-                j();
-            } __except (EXCEPTION_EXECUTE_HANDLER) {
-                Log::Line("[taskscheduler] job threw SEH exception code=0x%X",
-                          GetExceptionCode());
-            }
+            t_CurrentJob = &j;
+            InvokeJobSEH(&InvokeCurrentJob);
+            t_CurrentJob = nullptr;
         }
     }
 }

@@ -14,7 +14,7 @@
 # =============================================================================
 
 cmake_minimum_required(VERSION 3.20)
-project(ENI CXX)
+project(ENI C CXX)   # C is needed for the kernel driver subproject (driver/src/EniDrv.c)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -90,6 +90,76 @@ add_subdirectory(launcher)
 # legacy copy overwrites this one. We'll remove the legacy POST_BUILD
 # in a follow-up; for now the build order is intentional and documented.
 add_subdirectory(payload)
+
+# -----------------------------------------------------------------------------
+# Subproject 1e: the runtime memory dumper (sibling of payload/)
+# -----------------------------------------------------------------------------
+#
+# ENIDumper.dll is a small read-only DLL the operator manual-maps into a
+# live, fully-booted Roblox to snapshot Roblox's address space (including
+# the runtime-decrypted .byfron section) for offline signature derivation.
+# Built parallel to ENIPayload, but no payload.bin collision because
+# ENIDumper writes its own plaintext bin/ENIDumper.dll and skips the
+# encryption POST_BUILD step.
+#
+# Operator workflow:
+#   ENILoader.exe --payload bin\ENIDumper.dll --pid <roblox_pid>
+add_subdirectory(payload/dumper)
+
+# -----------------------------------------------------------------------------
+# Subproject 1f: the search-order-hijack proxy (ENIProxy / libHttpClient.GDK)
+# -----------------------------------------------------------------------------
+#
+# When PPL kills every external injection vector (OpenProcess returns 87,
+# DebugActiveProcess returns 5, CREATE_SUSPENDED + manual map yields
+# STATUS_PROCESS_IS_PROTECTED), the only surviving path is to have Roblox
+# load us itself. ENIProxy ships as libHttpClient.GDK.dll - a delay-load
+# import Roblox tries to resolve and which doesn't currently exist on
+# disk. Drop it in the install dir; Roblox's own LdrLoadDll picks it up
+# via standard search order; DllMain runs INSIDE the protected process
+# and spawns a worker thread that runs the v2 dumper pipeline once
+# Hyperion has finished decrypting the engine .text.
+#
+# Operator workflow: copy bin\libHttpClient.GDK.dll into Roblox's
+# version-<hash>\ install directory, launch Roblox normally, harvest
+# the dump from %LOCALAPPDATA%\ENI\logs\.
+add_subdirectory(proxy)
+
+# -----------------------------------------------------------------------------
+# Subproject 1g: BYOVD kernel-read dumper (ring-0 path, sidesteps PPL)
+# -----------------------------------------------------------------------------
+#
+# When the user-mode loader is locked down (PPL kernel callback filters
+# OpenProcess, Hyperion signature-checks install-dir DLLs by name, and
+# the user-mode module set is fully System32 + signed install dir) the
+# remaining option is ring-0. Test-signing is detectable via
+# NtQuerySystemInformation(SystemCodeIntegrityInformation), so we go
+# BYOVD: load a third-party signed driver via SCM, abuse its
+# kernel-virtual-memory-read IOCTL to snapshot RobloxPlayerBeta from
+# kernel context (where PPL doesn't apply).
+#
+# Standalone elevated CLI tool. Run AFTER Roblox is in-game so the
+# engine .text has finished its runtime decryption pass. Outputs go to
+# the same %LOCALAPPDATA%\ENI\logs\ as the in-process dumpers.
+add_subdirectory(byovd)
+
+# -----------------------------------------------------------------------------
+# Subproject 1h: ENIDrv kernel driver (test-signed, our own ring-0)
+# -----------------------------------------------------------------------------
+#
+# When BYOVD with currently-signed third-party drivers stops working
+# (PH 2.x revoked, KSystemInformer self-protected), the remaining ring-0
+# path is to write our own minimal driver and load it under
+# `bcdedit /set testsigning on`. This subproject builds bin\EniDrv.sys
+# from driver/src/EniDrv.c. ENIKernelDumper.exe expects to find it
+# alongside in bin/.
+#
+# IMPORTANT: this target depends on the WDK being installed at
+# "C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/km/".
+# If the WDK isn't present, configure-time include resolution fails.
+# We don't gate the target on file existence - if the WDK is missing
+# you'll see it loud and clear at build time.
+add_subdirectory(driver)
 
 # -----------------------------------------------------------------------------
 # Subproject 2: the payload DLL (existing code, retained as-is for now)

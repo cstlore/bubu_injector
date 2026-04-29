@@ -52,7 +52,11 @@ bin/
 *.bin
 .DS_Store
 
-
+# Test-signing artifacts - private keys, never commit
+driver/certs/
+*.pfx
+*.cer
+*.sys
 # Build outputs
 build/
 bin/
